@@ -202,53 +202,107 @@ export default function PhotoBooth() {
   }
 
   // Download Instax frame with improved reliability
-  const downloadInstaxFrame = async () => {
-    if (!instaxFrameRef.current || capturedImages.length < MAX_PHOTOS) {
-      alert("Please take 3 photos first to create a photo strip")
-      return
+  // Updated PhotoBooth component using your Tailwind color definitions
+// Updated PhotoBooth component using your Tailwind color definitions
+const downloadInstaxFrame = async () => {
+    if (capturedImages.length < MAX_PHOTOS) {
+      alert(`Please take ${MAX_PHOTOS} photos first to create a photo strip`);
+      return;
     }
-
+  
     try {
-      // Add loading state
-      setIsLoading(true)
+      setIsLoading(true);
+  
+      // Create a new canvas element
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
       
-      // Ensure all images are loaded
-      await Promise.all(
-        capturedImages.slice(0, MAX_PHOTOS).map(img => 
-          new Promise((resolve) => {
-            const image = new Image()
-            image.onload = resolve
-            image.src = img.dataUrl
-          })
-        )
-      )
-
-      // Capture the frame
-      const canvas = await html2canvas(instaxFrameRef.current, {
-        scale: 2,
-        logging: true,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null
-      })
-
-      // Create download link
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9)
-      const link = document.createElement("a")
-      link.href = dataUrl
-      link.download = `valentine-photo-strip-${new Date().toISOString().slice(0, 10)}.jpg`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
+      // Set canvas dimensions (adjust as needed)
+      canvas.width = 800;
+      canvas.height = 1200;
+      
+      // Draw background gradient
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, '#fce7f3'); // pink-100
+      gradient.addColorStop(1, '#f3e8ff'); // violet-100
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+      // Draw frame border
+      ctx.strokeStyle = '#fbcfe8'; // pink-200
+      ctx.lineWidth = 16;
+      ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+  
+      // Add title
+      ctx.fillStyle = '#6d28d9'; // violet-700
+      ctx.font = 'bold 28px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText("Valentine's Photo Strip", canvas.width / 2, 60);
+  
+      // Draw each photo
+      const photoWidth = canvas.width - 80;
+      const photoHeight = (canvas.height - 200) / 3;
+      const startY = 100;
+  
+      for (let i = 0; i < Math.min(MAX_PHOTOS, capturedImages.length); i++) {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = capturedImages[i].dataUrl;
+  
+        // Wait for image to load
+        await new Promise(resolve => {
+          img.onload = resolve;
+        });
+  
+        // Calculate dimensions
+        const ratio = Math.min(photoWidth / img.width, photoHeight / img.height);
+        const width = img.width * ratio;
+        const height = img.height * ratio;
+        const x = (canvas.width - width) / 2;
+        const y = startY + (i * (photoHeight + 30));
+  
+        // Draw photo with white background and pink border
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x - 5, y - 5, width + 10, height + 10);
+        ctx.drawImage(img, x, y, width, height);
+        ctx.strokeStyle = '#f9a8d4'; // pink-300
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 5, y - 5, width + 10, height + 10);
+  
+        // Add caption
+        ctx.fillStyle = '#db2777'; // pink-600
+        ctx.font = '12px Arial';
+        ctx.fillText(
+          `${new Date(capturedImages[i].timestamp).toLocaleDateString()} • ${capturedImages[i].filter !== "none" ? capturedImages[i].filter : "normal"}`,
+          canvas.width / 2,
+          y + height + 20
+        );
+      }
+  
+      // Add footer
+      ctx.fillStyle = '#6d28d9'; // violet-700
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText("Happy Valentine's & Birthday!", canvas.width / 2, canvas.height - 60);
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#db2777'; // pink-600
+      ctx.fillText(new Date().toLocaleDateString(), canvas.width / 2, canvas.height - 30);
+  
+      // Convert to data URL and download
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `valentine-photo-strip-${new Date().toISOString().slice(0, 10)}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  
     } catch (error) {
-      console.error("Error generating Instax frame:", error)
-      alert("Failed to generate photo strip. Please try again.")
+      console.error("Error generating Instax frame:", error);
+      alert("Failed to generate photo strip. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
-
+  };
   // Clean up on unmount
   useEffect(() => {
     return () => {
