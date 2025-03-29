@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect } from "react"
 import { Camera, Download, Trash, RefreshCw } from "lucide-react"
 import { initializeApp } from "firebase/app"
-import { getDatabase, ref, push, set, onValue, remove } from "firebase/database"
+import { getDatabase, ref, push, set } from "firebase/database"
 import { getAuth, signInAnonymously } from "firebase/auth"
 import html2canvas from "html2canvas"
 
-// Initialize Firebase (using your existing config)
+// Initialize Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA-MkzGejmrQ-Ak66aiqNIyvBp-Xm8DKec",
   authDomain: "kisya-74ac7.firebaseapp.com",
@@ -18,7 +18,6 @@ const firebaseConfig = {
   measurementId: "G-7LQEG4XPRJ",
 }
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig)
 const database = getDatabase(app)
 const auth = getAuth(app)
@@ -32,11 +31,8 @@ export default function PhotoBooth() {
   const [isLoading, setIsLoading] = useState(false)
   const [userId, setUserId] = useState(null)
   const [activeFilter, setActiveFilter] = useState("none")
-
   const [showInstaxFrame, setShowInstaxFrame] = useState(false)
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [showSavedImages, setShowSavedImages] = useState(true);
-
+  const [isCapturing, setIsCapturing] = useState(false)
 
   const MAX_PHOTOS = 3
 
@@ -48,43 +44,17 @@ export default function PhotoBooth() {
     { id: "hearts", name: "Hearts" },
   ]
 
-  // Sign in anonymously to Firebase
+  // Sign in anonymously to Firebase (no image loading)
   useEffect(() => {
     signInAnonymously(auth)
       .then((result) => {
         setUserId(result.user.uid)
-        // Load saved images
-        loadSavedImages(result.user.uid)
       })
       .catch((error) => {
         console.error("Error signing in anonymously:", error)
       })
   }, [])
 
-  // Modify the loadSavedImages function to respect the showSavedImages state
-const loadSavedImages = (uid) => {
-    if (!showSavedImages) return; // Don't load if we're hiding saved images
-    
-    const imagesRef = ref(database, `images/${uid}`);
-    onValue(imagesRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const loadedImages = Object.entries(data).map(([key, value]) => ({
-          id: key,
-          dataUrl: value.dataUrl,
-          timestamp: value.timestamp,
-          filter: value.filter || "none",
-        }));
-  
-        const sortedImages = loadedImages
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-          .slice(0, MAX_PHOTOS);
-  
-        setCapturedImages(sortedImages);
-        setShowInstaxFrame(sortedImages.length >= MAX_PHOTOS);
-      }
-    });
-  };
   // Start camera
   const startCamera = async () => {
     setIsLoading(true)
@@ -96,8 +66,6 @@ const loadSavedImages = (uid) => {
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
         setStream(mediaStream)
-      } else {
-        console.error("videoRef is null, retrying...")
       }
     } catch (err) {
       console.error("Error accessing camera:", err)
@@ -117,102 +85,97 @@ const loadSavedImages = (uid) => {
     }
   }
 
-  // Capture image and save to Firebase in one step
+  // Capture image and save to Firebase
   const captureImage = async () => {
-    if (isCapturing || !videoRef.current || !canvasRef.current || !userId) {
-      console.log("Capture prevented - already capturing or missing refs");
-      return;
-    }
-  
-    setIsCapturing(true);
-    console.log("Attempting to capture image...");
-  
+    if (isCapturing || !videoRef.current || !canvasRef.current || !userId) return
+    if (capturedImages.length >= MAX_PHOTOS) return
+
+    setIsCapturing(true)
+
     try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
+      const video = videoRef.current
+      const canvas = canvasRef.current
       
-      // Verify video is actually playing
+      // Wait for video to be ready if needed
       if (video.readyState !== 4) {
-        console.warn("Video not ready, waiting...");
         await new Promise(resolve => {
           const onCanPlay = () => {
-            video.removeEventListener('canplay', onCanPlay);
-            resolve();
-          };
-          video.addEventListener('canplay', onCanPlay);
-        });
+            video.removeEventListener('canplay', onCanPlay)
+            resolve()
+          }
+          video.addEventListener('canplay', onCanPlay)
+        })
       }
-  
+
       // Set canvas dimensions
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
       
-      // Capture frame
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  
-      // Apply effects
+      // Draw video frame
+      const context = canvas.getContext('2d')
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      // Apply filter if needed
       if (activeFilter !== "none" && activeFilter !== "hearts") {
-        context.save();
-        context.filter = getFilterStyle(activeFilter);
-        context.drawImage(canvas, 0, 0);
-        context.restore();
+        context.save()
+        context.filter = getFilterStyle(activeFilter)
+        context.drawImage(canvas, 0, 0)
+        context.restore()
       }
-  
+
+      // Add hearts if selected
       if (activeFilter === "hearts") {
-        addHearts(context, canvas.width, canvas.height);
+        addHearts(context, canvas.width, canvas.height)
       }
-  
-      // Create image data
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+      // Create and save image
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+      const newImageRef = push(ref(database, `images/${userId}`))
       const newImage = {
         dataUrl,
         timestamp: new Date().toISOString(),
         filter: activeFilter
-      };
-  
-      // Save to Firebase
-      const newImageRef = push(ref(database, `images/${userId}`));
-      await set(newImageRef, newImage);
-  
-      // Update local state using functional update
+      }
+
+      await set(newImageRef, newImage)
+      
+      // Update local state only
       setCapturedImages(prev => {
-        const updated = [{ id: newImageRef.key, ...newImage }, ...prev];
-        return updated.slice(0, MAX_PHOTOS);
-      });
-
-      // Update instax frame state
-        setShowInstaxFrame(prev => prev || capturedImages.length + 1 >= MAX_PHOTOS);
-
-  
-    } catch (error) {
-      console.error("Capture error:", error);
-      alert("Failed to capture photo. Please try again.");
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-  useEffect(() => {
-    signInAnonymously(auth)
-      .then((result) => {
-        setUserId(result.user.uid);
-        // Don't load saved images automatically
+        const updated = [{ id: newImageRef.key, ...newImage }, ...prev]
+        return updated.slice(0, MAX_PHOTOS)
       })
-      .catch((error) => {
-        console.error("Error signing in anonymously:", error);
-      });
-  }, []);
+
+      // Show instax frame if we reached max photos
+      if (capturedImages.length + 1 >= MAX_PHOTOS) {
+        setShowInstaxFrame(true)
+      }
+
+    } catch (error) {
+      console.error("Capture error:", error)
+      alert("Failed to capture photo. Please try again.")
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
+  // Reset current session (doesn't affect Firebase)
+  const resetPhotos = () => {
+    if (capturedImages.length === 0) return
+
+    const confirmReset = window.confirm("Are you sure you want to clear the current session?")
+    if (!confirmReset) return
+
+    setCapturedImages([])
+    setShowInstaxFrame(false)
+  }
+
   // Get CSS filter style
   const getFilterStyle = (filter) => {
     switch (filter) {
-      case "grayscale":
-        return "grayscale(100%)"
-      case "sepia":
-        return "sepia(100%)"
-      case "invert":
-        return "invert(80%)"
-      default:
-        return "none"
+      case "grayscale": return "grayscale(100%)"
+      case "sepia": return "sepia(100%)"
+      case "invert": return "invert(80%)"
+      default: return "none"
     }
   }
 
@@ -222,7 +185,6 @@ const loadSavedImages = (uid) => {
       const x = Math.random() * width
       const y = Math.random() * height
       const size = 10 + Math.random() * 30
-
       context.font = `${size}px Arial`
       context.fillStyle = "rgba(255, 0, 100, 0.7)"
       context.fillText("❤️", x, y)
@@ -239,19 +201,18 @@ const loadSavedImages = (uid) => {
     document.body.removeChild(link)
   }
 
-  // Download Instax frame with all 3 photos
+  // Download Instax frame
   const downloadInstaxFrame = async () => {
     if (!instaxFrameRef.current || capturedImages.length < MAX_PHOTOS) return
 
     try {
       const canvas = await html2canvas(instaxFrameRef.current, {
         useCORS: true,
-        scale: 2, // Higher quality
+        scale: 2,
         backgroundColor: null,
       })
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.9)
-
       const link = document.createElement("a")
       link.href = dataUrl
       link.download = "valentine-instax-photos.jpg"
@@ -264,40 +225,6 @@ const loadSavedImages = (uid) => {
     }
   }
 
-  // Delete image from Firebase and local state
-  const deleteImage = async (id) => {
-    if (!userId) return
-
-    try {
-      await remove(ref(database, `images/${userId}/${id}`))
-      // The onValue listener will update the local state
-
-      // Hide Instax frame if we now have fewer than 3 photos
-      if (capturedImages.length <= MAX_PHOTOS) {
-        setShowInstaxFrame(false)
-      }
-    } catch (error) {
-      console.error("Error deleting image:", error)
-      alert("Failed to delete image. Please try again.")
-    }
-  }
-
-  // Reset all photos
-  const resetPhotos = async () => {
-    if (capturedImages.length === 0) return;
-  
-    const confirmReset = window.confirm("Are you sure you want to clear the current session?");
-    if (!confirmReset) return;
-  
-    try {
-      setCapturedImages([]);
-      setShowInstaxFrame(false);
-    } catch (error) {
-      console.error("Error resetting photos:", error);
-      alert("Failed to reset photos. Please try again.");
-    }
-  };
-  
   // Clean up on unmount
   useEffect(() => {
     return () => {
@@ -325,7 +252,7 @@ const loadSavedImages = (uid) => {
         )}
       </div>
 
-      {/* Instax Frame (shown when 3 photos are taken) */}
+      {/* Instax Frame */}
       {showInstaxFrame && capturedImages.length >= MAX_PHOTOS && (
         <div className="w-full max-w-md mx-auto mb-8">
           <div ref={instaxFrameRef} className="bg-white p-4 rounded-lg shadow-lg border-8 border-pink-100">
@@ -336,7 +263,7 @@ const loadSavedImages = (uid) => {
                   <div key={image.id} className="relative">
                     <div className="bg-white p-2 rounded shadow-sm">
                       <img
-                        src={image.dataUrl || "/placeholder.svg"}
+                        src={image.dataUrl}
                         alt={`Photo ${index + 1}`}
                         className="w-full h-auto rounded"
                       />
@@ -377,25 +304,22 @@ const loadSavedImages = (uid) => {
                   ref={videoRef}
                   autoPlay
                   playsInline
+                  muted
                   className={`w-full h-full object-cover ${
                     activeFilter !== "none" && activeFilter !== "hearts" ? `filter-${activeFilter}` : ""
                   }`}
                 />
 
-{!stream && (
-  <div className="flex justify-center mt-4">
-    <button
-      onClick={startCamera}
-      disabled={isLoading}
-      className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700"
-    >
-      {isLoading ? "Starting Camera..." : "Start Camera"}
-    </button>
-  </div>
-)}
+                {!stream && (
+                  <button
+                    onClick={startCamera}
+                    disabled={isLoading}
+                    className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700"
+                  >
+                    {isLoading ? "Starting Camera..." : "Start Camera"}
+                  </button>
+                )}
 
-
-                {/* Hidden canvas for capturing */}
                 <canvas ref={canvasRef} className="hidden" />
               </div>
 
@@ -418,19 +342,19 @@ const loadSavedImages = (uid) => {
               )}
 
               <div className="mt-4 flex justify-between">
-                {stream ? (
+                {stream && (
                   <>
                     <button
-  onClick={captureImage}
-  disabled={isCapturing || capturedImages.length >= MAX_PHOTOS}
-  className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2 ${
-    isCapturing ? "opacity-70 cursor-not-allowed" : ""
-  }`}
->
-  <Camera className="h-4 w-4" />
-  {isCapturing ? "Capturing..." : 
-   capturedImages.length >= MAX_PHOTOS ? "Max Photos Reached" : "Take Photo"}
-</button>
+                      onClick={captureImage}
+                      disabled={isCapturing || capturedImages.length >= MAX_PHOTOS}
+                      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2 ${
+                        isCapturing ? "opacity-70 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      <Camera className="h-4 w-4" />
+                      {isCapturing ? "Capturing..." : 
+                       capturedImages.length >= MAX_PHOTOS ? "Max Photos Reached" : "Take Photo"}
+                    </button>
                     <button
                       onClick={stopCamera}
                       className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 border border-pink-300 bg-white hover:bg-pink-50 text-pink-600"
@@ -438,7 +362,7 @@ const loadSavedImages = (uid) => {
                       Stop Camera
                     </button>
                   </>
-                ) : null}
+                )}
               </div>
             </div>
 
@@ -458,7 +382,7 @@ const loadSavedImages = (uid) => {
                         <div className="flex items-center gap-3">
                           <div className="w-16 h-16 flex-shrink-0 bg-white rounded overflow-hidden">
                             <img
-                              src={image.dataUrl || "/placeholder.svg"}
+                              src={image.dataUrl}
                               alt={`Photo ${index + 1}`}
                               className="w-full h-full object-cover"
                             />
@@ -477,13 +401,6 @@ const loadSavedImages = (uid) => {
                               title="Download"
                             >
                               <Download className="h-4 w-4" />
-                            </button>
-                            <button
-                              className="h-8 w-8 rounded-md inline-flex items-center justify-center text-pink-600 hover:bg-pink-100"
-                              onClick={() => deleteImage(image.id)}
-                              title="Delete"
-                            >
-                              <Trash className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
@@ -506,4 +423,3 @@ const loadSavedImages = (uid) => {
     </div>
   )
 }
-
