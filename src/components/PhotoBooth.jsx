@@ -201,27 +201,51 @@ export default function PhotoBooth() {
     document.body.removeChild(link)
   }
 
-  // Download Instax frame
+  // Download Instax frame with improved reliability
   const downloadInstaxFrame = async () => {
-    if (!instaxFrameRef.current || capturedImages.length < MAX_PHOTOS) return
+    if (!instaxFrameRef.current || capturedImages.length < MAX_PHOTOS) {
+      alert("Please take 3 photos first to create a photo strip")
+      return
+    }
 
     try {
+      // Add loading state
+      setIsLoading(true)
+      
+      // Ensure all images are loaded
+      await Promise.all(
+        capturedImages.slice(0, MAX_PHOTOS).map(img => 
+          new Promise((resolve) => {
+            const image = new Image()
+            image.onload = resolve
+            image.src = img.dataUrl
+          })
+        )
+      )
+
+      // Capture the frame
       const canvas = await html2canvas(instaxFrameRef.current, {
-        useCORS: true,
         scale: 2,
-        backgroundColor: null,
+        logging: true,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null
       })
 
+      // Create download link
       const dataUrl = canvas.toDataURL("image/jpeg", 0.9)
       const link = document.createElement("a")
       link.href = dataUrl
-      link.download = "valentine-instax-photos.jpg"
+      link.download = `valentine-photo-strip-${new Date().toISOString().slice(0, 10)}.jpg`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+
     } catch (error) {
       console.error("Error generating Instax frame:", error)
-      alert("Failed to download Instax frame. Please try again.")
+      alert("Failed to generate photo strip. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -266,6 +290,7 @@ export default function PhotoBooth() {
                         src={image.dataUrl}
                         alt={`Photo ${index + 1}`}
                         className="w-full h-auto rounded"
+                        crossOrigin="anonymous"
                       />
                       <p className="text-xs text-center text-pink-500 mt-1">
                         {new Date(image.timestamp).toLocaleDateString()} •{" "}
@@ -285,10 +310,20 @@ export default function PhotoBooth() {
           <div className="text-center mt-4">
             <button
               onClick={downloadInstaxFrame}
+              disabled={isLoading}
               className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2"
             >
-              <Download className="h-4 w-4" />
-              Download Photo Strip
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Preparing Download...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Download Photo Strip
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -385,6 +420,7 @@ export default function PhotoBooth() {
                               src={image.dataUrl}
                               alt={`Photo ${index + 1}`}
                               className="w-full h-full object-cover"
+                              crossOrigin="anonymous"
                             />
                           </div>
                           <div className="flex-grow">
