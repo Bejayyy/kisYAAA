@@ -341,53 +341,54 @@ export default function PhotoBooth() {
         <div className="p-4 md:p-6">
           <div className="flex flex-col gap-6">
             {/* Camera Section */}
-            <div className="flex-1">
-              <div className="relative rounded-lg overflow-hidden bg-gray-900 aspect-video flex items-center justify-center">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
+            <div className="flex-1 border-4">
+  <div className="relative rounded-lg overflow-hidden bg-gray-900 aspect-video flex items-center justify-center">
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className="w-full h-full object-cover"
+    />
 
-                {!stream && (
-                  <button
-                    onClick={startCamera}
-                    disabled={isLoading}
-                    className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 text-sm md:text-base"
-                  >
-                    {isLoading ? "Starting Camera..." : "Start Camera"}
-                  </button>
-                )}
+    {!stream && (
+      <button
+        onClick={startCamera}
+        disabled={isLoading}
+        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 text-sm md:text-base"
+      >
+        {isLoading ? "Starting Camera..." : "Start Camera"}
+      </button>
+    )}
 
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
+    <canvas ref={canvasRef} className="hidden" />
+  </div>
 
-              <div className="mt-4 flex justify-between">
-                {stream && (
-                  <>
-                    <button
-                      onClick={captureImage}
-                      disabled={isCapturing || capturedImages.length >= MAX_PHOTOS}
-                      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2 text-sm md:text-base ${
-                        isCapturing ? "opacity-70 cursor-not-allowed" : ""
-                      }`}
-                    >
-                      <Camera className="h-4 w-4" />
-                      {isCapturing ? "Capturing..." : 
-                       capturedImages.length >= MAX_PHOTOS ? "Max Photos Reached" : "Take Photo"}
-                    </button>
-                    <button
-                      onClick={stopCamera}
-                      className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 border border-pink-300 bg-white hover:bg-pink-50 text-pink-600 text-sm md:text-base"
-                    >
-                      Stop Camera
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+  <div className="mt-4 flex justify-center gap-4">
+    {stream && (
+      <>
+        <button
+          onClick={captureImage}
+          disabled={isCapturing || capturedImages.length >= MAX_PHOTOS}
+          className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2 text-sm md:text-base ${
+            isCapturing ? "opacity-70 cursor-not-allowed" : ""
+          }`}
+        >
+          <Camera className="h-4 w-4" />
+          {isCapturing ? "Capturing..." : 
+           capturedImages.length >= MAX_PHOTOS ? "Max Photos Reached" : "Take Photo"}
+        </button>
+        <button
+          onClick={stopCamera}
+          className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 border border-pink-300 bg-white hover:bg-pink-50 text-pink-600 text-sm md:text-base"
+        >
+          Stop Camera
+        </button>
+      </>
+    )}
+  </div>
+</div>
+
 
             {/* Photos Section */}
             <div className="flex-1">
