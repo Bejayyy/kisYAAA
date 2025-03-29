@@ -12,7 +12,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyA-MkzGejmrQ-Ak66aiqNIyvBp-Xm8DKec",
   authDomain: "kisya-74ac7.firebaseapp.com",
   projectId: "kisya-74ac7",
-  storageBucket: "kisya-74ac7.firebasestorage.app",
+  storageBucket: "kisya-74ac7.appspot.com",
   messagingSenderId: "632807406142",
   appId: "1:632807406142:web:bac02be726397de8736f6f",
   measurementId: "G-7LQEG4XPRJ",
@@ -30,21 +30,12 @@ export default function PhotoBooth() {
   const [capturedImages, setCapturedImages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [userId, setUserId] = useState(null)
-  const [activeFilter, setActiveFilter] = useState("none")
   const [showInstaxFrame, setShowInstaxFrame] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
 
   const MAX_PHOTOS = 3
 
-  const filters = [
-    { id: "none", name: "Normal" },
-    { id: "grayscale", name: "Grayscale" },
-    { id: "sepia", name: "Sepia" },
-    { id: "invert", name: "Invert" },
-    { id: "hearts", name: "Hearts" },
-  ]
-
-  // Sign in anonymously to Firebase (no image loading)
+  // Sign in anonymously to Firebase
   useEffect(() => {
     signInAnonymously(auth)
       .then((result) => {
@@ -115,26 +106,12 @@ export default function PhotoBooth() {
       const context = canvas.getContext('2d')
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-      // Apply filter if needed
-      if (activeFilter !== "none" && activeFilter !== "hearts") {
-        context.save()
-        context.filter = getFilterStyle(activeFilter)
-        context.drawImage(canvas, 0, 0)
-        context.restore()
-      }
-
-      // Add hearts if selected
-      if (activeFilter === "hearts") {
-        addHearts(context, canvas.width, canvas.height)
-      }
-
       // Create and save image
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
       const newImageRef = push(ref(database, `images/${userId}`))
       const newImage = {
         dataUrl,
-        timestamp: new Date().toISOString(),
-        filter: activeFilter
+        timestamp: new Date().toISOString()
       }
 
       await set(newImageRef, newImage)
@@ -158,7 +135,7 @@ export default function PhotoBooth() {
     }
   }
 
-  // Reset current session (doesn't affect Firebase)
+  // Reset current session
   const resetPhotos = () => {
     if (capturedImages.length === 0) return
 
@@ -167,28 +144,6 @@ export default function PhotoBooth() {
 
     setCapturedImages([])
     setShowInstaxFrame(false)
-  }
-
-  // Get CSS filter style
-  const getFilterStyle = (filter) => {
-    switch (filter) {
-      case "grayscale": return "grayscale(100%)"
-      case "sepia": return "sepia(100%)"
-      case "invert": return "invert(80%)"
-      default: return "none"
-    }
-  }
-
-  // Add hearts to canvas
-  const addHearts = (context, width, height) => {
-    for (let i = 0; i < 20; i++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const size = 10 + Math.random() * 30
-      context.font = `${size}px Arial`
-      context.fillStyle = "rgba(255, 0, 100, 0.7)"
-      context.fillText("❤️", x, y)
-    }
   }
 
   // Download individual image
@@ -201,108 +156,108 @@ export default function PhotoBooth() {
     document.body.removeChild(link)
   }
 
-  // Download Instax frame with improved reliability
-  // Updated PhotoBooth component using your Tailwind color definitions
-// Updated PhotoBooth component using your Tailwind color definitions
-const downloadInstaxFrame = async () => {
+  // Download Instax frame
+  const downloadInstaxFrame = async () => {
     if (capturedImages.length < MAX_PHOTOS) {
-      alert(`Please take ${MAX_PHOTOS} photos first to create a photo strip`);
-      return;
+      alert(`Please take ${MAX_PHOTOS} photos first to create a photo strip`)
+      return
     }
   
     try {
-      setIsLoading(true);
+      setIsLoading(true)
   
       // Create a new canvas element
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
       
-      // Set canvas dimensions (adjust as needed)
-      canvas.width = 800;
-      canvas.height = 1200;
+      // Set canvas dimensions (responsive)
+      const isMobile = window.innerWidth < 768
+      canvas.width = isMobile ? 400 : 800
+      canvas.height = isMobile ? 600 : 1200
       
       // Draw background gradient
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, '#fce7f3'); // pink-100
-      gradient.addColorStop(1, '#f3e8ff'); // violet-100
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+      gradient.addColorStop(0, '#fce7f3')
+      gradient.addColorStop(1, '#f3e8ff')
+      ctx.fillStyle = gradient
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
   
       // Draw frame border
-      ctx.strokeStyle = '#fbcfe8'; // pink-200
-      ctx.lineWidth = 16;
-      ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+      ctx.strokeStyle = '#fbcfe8'
+      ctx.lineWidth = 16
+      ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16)
   
       // Add title
-      ctx.fillStyle = '#6d28d9'; // violet-700
-      ctx.font = 'bold 28px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText("Valentine's Photo Strip", canvas.width / 2, 60);
+      ctx.fillStyle = '#6d28d9'
+      ctx.font = `bold ${isMobile ? '20px' : '28px'} Arial`
+      ctx.textAlign = 'center'
+      ctx.fillText("Valentine's Photo Strip", canvas.width / 2, isMobile ? 40 : 60)
   
       // Draw each photo
-      const photoWidth = canvas.width - 80;
-      const photoHeight = (canvas.height - 200) / 3;
-      const startY = 100;
+      const photoWidth = canvas.width - (isMobile ? 40 : 80)
+      const photoHeight = (canvas.height - (isMobile ? 120 : 200)) / 3
+      const startY = isMobile ? 70 : 100
   
       for (let i = 0; i < Math.min(MAX_PHOTOS, capturedImages.length); i++) {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.src = capturedImages[i].dataUrl;
+        const img = new Image()
+        img.crossOrigin = 'Anonymous'
+        img.src = capturedImages[i].dataUrl
   
         // Wait for image to load
         await new Promise(resolve => {
-          img.onload = resolve;
-        });
+          img.onload = resolve
+        })
   
         // Calculate dimensions
-        const ratio = Math.min(photoWidth / img.width, photoHeight / img.height);
-        const width = img.width * ratio;
-        const height = img.height * ratio;
-        const x = (canvas.width - width) / 2;
-        const y = startY + (i * (photoHeight + 30));
+        const ratio = Math.min(photoWidth / img.width, photoHeight / img.height)
+        const width = img.width * ratio
+        const height = img.height * ratio
+        const x = (canvas.width - width) / 2
+        const y = startY + (i * (photoHeight + (isMobile ? 15 : 30)))
   
         // Draw photo with white background and pink border
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - 5, y - 5, width + 10, height + 10);
-        ctx.drawImage(img, x, y, width, height);
-        ctx.strokeStyle = '#f9a8d4'; // pink-300
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x - 5, y - 5, width + 10, height + 10);
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(x - 5, y - 5, width + 10, height + 10)
+        ctx.drawImage(img, x, y, width, height)
+        ctx.strokeStyle = '#f9a8d4'
+        ctx.lineWidth = 2
+        ctx.strokeRect(x - 5, y - 5, width + 10, height + 10)
   
         // Add caption
-        ctx.fillStyle = '#db2777'; // pink-600
-        ctx.font = '12px Arial';
+        ctx.fillStyle = '#db2777'
+        ctx.font = isMobile ? '10px' : '12px Arial'
         ctx.fillText(
-          `${new Date(capturedImages[i].timestamp).toLocaleDateString()} • ${capturedImages[i].filter !== "none" ? capturedImages[i].filter : "normal"}`,
+          new Date(capturedImages[i].timestamp).toLocaleDateString(),
           canvas.width / 2,
-          y + height + 20
-        );
+          y + height + (isMobile ? 15 : 20)
+        )
       }
   
       // Add footer
-      ctx.fillStyle = '#6d28d9'; // violet-700
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText("Happy Valentine's & Birthday!", canvas.width / 2, canvas.height - 60);
-      ctx.font = '12px Arial';
-      ctx.fillStyle = '#db2777'; // pink-600
-      ctx.fillText(new Date().toLocaleDateString(), canvas.width / 2, canvas.height - 30);
+      ctx.fillStyle = '#6d28d9'
+      ctx.font = `bold ${isMobile ? '14px' : '16px'} Arial`
+      ctx.fillText("Happy Valentine's & Birthday!", canvas.width / 2, canvas.height - (isMobile ? 40 : 60))
+      ctx.font = isMobile ? '10px' : '12px Arial'
+      ctx.fillStyle = '#db2777'
+      ctx.fillText(new Date().toLocaleDateString(), canvas.width / 2, canvas.height - (isMobile ? 20 : 30))
   
       // Convert to data URL and download
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `valentine-photo-strip-${new Date().toISOString().slice(0, 10)}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = `valentine-photo-strip-${new Date().toISOString().slice(0, 10)}.jpg`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
   
     } catch (error) {
-      console.error("Error generating Instax frame:", error);
-      alert("Failed to generate photo strip. Please try again.");
+      console.error("Error generating Instax frame:", error)
+      alert("Failed to generate photo strip. Please try again.")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
@@ -311,8 +266,8 @@ const downloadInstaxFrame = async () => {
   }, [])
 
   return (
-    <div className="flex flex-col items-center animate-fade-in">
-      <h2 className="text-2xl font-bold text-pink-600 mb-8">Photo Booth</h2>
+    <div className="flex flex-col items-center animate-fade-in p-4">
+      <h2 className="text-2xl font-bold text-pink-600 mb-4 md:mb-8">Photo Booth</h2>
 
       {/* Photo counter */}
       <div className="w-full max-w-3xl mx-auto mb-4 flex justify-between items-center">
@@ -322,7 +277,7 @@ const downloadInstaxFrame = async () => {
         {capturedImages.length > 0 && (
           <button
             onClick={resetPhotos}
-            className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-9 px-3 border border-pink-300 bg-white hover:bg-pink-50 text-pink-600 gap-2"
+            className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-9 px-3 border border-pink-300 bg-white hover:bg-pink-50 text-pink-600 gap-2 text-sm md:text-base"
           >
             <RefreshCw className="h-4 w-4" />
             Reset All
@@ -332,14 +287,14 @@ const downloadInstaxFrame = async () => {
 
       {/* Instax Frame */}
       {showInstaxFrame && capturedImages.length >= MAX_PHOTOS && (
-        <div className="w-full max-w-md mx-auto mb-8">
-          <div ref={instaxFrameRef} className="bg-white p-4 rounded-lg shadow-lg border-8 border-pink-100">
-            <div className="bg-pink-50 p-3 rounded-md mb-3">
-              <h3 className="text-center text-pink-600 font-bold mb-2">Valentine's Photo Strip</h3>
-              <div className="grid gap-3">
+        <div className="w-full max-w-md mx-auto mb-6 md:mb-8">
+          <div ref={instaxFrameRef} className="bg-white p-2 md:p-4 rounded-lg shadow-lg border-4 md:border-8 border-pink-100">
+            <div className="bg-pink-50 p-2 md:p-3 rounded-md mb-2 md:mb-3">
+              <h3 className="text-center text-pink-600 font-bold mb-1 md:mb-2 text-sm md:text-base">Valentine's Photo Strip</h3>
+              <div className="grid gap-2 md:gap-3">
                 {capturedImages.slice(0, MAX_PHOTOS).map((image, index) => (
                   <div key={image.id} className="relative">
-                    <div className="bg-white p-2 rounded shadow-sm">
+                    <div className="bg-white p-1 md:p-2 rounded shadow-sm">
                       <img
                         src={image.dataUrl}
                         alt={`Photo ${index + 1}`}
@@ -347,30 +302,29 @@ const downloadInstaxFrame = async () => {
                         crossOrigin="anonymous"
                       />
                       <p className="text-xs text-center text-pink-500 mt-1">
-                        {new Date(image.timestamp).toLocaleDateString()} •{" "}
-                        {image.filter !== "none" ? image.filter : "normal"}
+                        {new Date(image.timestamp).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="text-center mt-3 text-pink-600 text-sm">
+              <div className="text-center mt-2 md:mt-3 text-pink-600 text-xs md:text-sm">
                 <p>Happy Valentine's & Birthday!</p>
                 <p className="text-xs">{new Date().toLocaleDateString()}</p>
               </div>
             </div>
           </div>
 
-          <div className="text-center mt-4">
+          <div className="text-center mt-3 md:mt-4">
             <button
               onClick={downloadInstaxFrame}
               disabled={isLoading}
-              className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2"
+              className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-9 md:h-10 py-1 md:py-2 px-3 md:px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2 text-sm md:text-base"
             >
               {isLoading ? (
                 <span className="flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  Preparing Download...
+                  Preparing...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
@@ -383,9 +337,9 @@ const downloadInstaxFrame = async () => {
         </div>
       )}
 
-      <div className="w-full max-w-3xl mx-auto mb-8 rounded-lg border bg-white shadow-sm">
-        <div className="p-6">
-          <div className="flex flex-col md:flex-row gap-6">
+      <div className="w-full max-w-3xl mx-auto mb-6 md:mb-8 rounded-lg border bg-white shadow-sm">
+        <div className="p-4 md:p-6">
+          <div className="flex flex-col gap-6">
             {/* Camera Section */}
             <div className="flex-1">
               <div className="relative rounded-lg overflow-hidden bg-gray-900 aspect-video flex items-center justify-center">
@@ -394,16 +348,14 @@ const downloadInstaxFrame = async () => {
                   autoPlay
                   playsInline
                   muted
-                  className={`w-full h-full object-cover ${
-                    activeFilter !== "none" && activeFilter !== "hearts" ? `filter-${activeFilter}` : ""
-                  }`}
+                  className="w-full h-full object-cover"
                 />
 
                 {!stream && (
                   <button
                     onClick={startCamera}
                     disabled={isLoading}
-                    className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700"
+                    className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 text-sm md:text-base"
                   >
                     {isLoading ? "Starting Camera..." : "Start Camera"}
                   </button>
@@ -412,31 +364,13 @@ const downloadInstaxFrame = async () => {
                 <canvas ref={canvasRef} className="hidden" />
               </div>
 
-              {stream && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {filters.map((filter) => (
-                    <button
-                      key={filter.id}
-                      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-9 px-3 ${
-                        activeFilter === filter.id
-                          ? "bg-pink-600 text-white"
-                          : "border border-pink-300 bg-white hover:bg-pink-50 text-pink-600"
-                      }`}
-                      onClick={() => setActiveFilter(filter.id)}
-                    >
-                      {filter.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-
               <div className="mt-4 flex justify-between">
                 {stream && (
                   <>
                     <button
                       onClick={captureImage}
                       disabled={isCapturing || capturedImages.length >= MAX_PHOTOS}
-                      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2 ${
+                      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 bg-pink-600 text-white hover:bg-pink-700 gap-2 text-sm md:text-base ${
                         isCapturing ? "opacity-70 cursor-not-allowed" : ""
                       }`}
                     >
@@ -446,7 +380,7 @@ const downloadInstaxFrame = async () => {
                     </button>
                     <button
                       onClick={stopCamera}
-                      className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 border border-pink-300 bg-white hover:bg-pink-50 text-pink-600"
+                      className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4 border border-pink-300 bg-white hover:bg-pink-50 text-pink-600 text-sm md:text-base"
                     >
                       Stop Camera
                     </button>
@@ -465,7 +399,7 @@ const downloadInstaxFrame = async () => {
                     <p className="text-gray-500 text-sm mt-2">Photos are automatically saved when you take them.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto p-2">
+                  <div className="grid grid-cols-1 gap-3 max-h-[300px] md:max-h-[400px] overflow-y-auto p-1 md:p-2">
                     {capturedImages.map((image, index) => (
                       <div key={image.id} className="relative group bg-pink-50 p-2 rounded-lg">
                         <div className="flex items-center gap-3">
@@ -480,9 +414,6 @@ const downloadInstaxFrame = async () => {
                           <div className="flex-grow">
                             <p className="text-sm font-medium text-pink-600">Photo {index + 1}</p>
                             <p className="text-xs text-gray-500">{new Date(image.timestamp).toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">
-                              Filter: {image.filter !== "none" ? image.filter : "normal"}
-                            </p>
                           </div>
                           <div className="flex gap-1">
                             <button
